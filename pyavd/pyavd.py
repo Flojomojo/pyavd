@@ -52,10 +52,12 @@ class AVD:
         self.sdcard_size = sdcard_size
         self.based_on = based_on
         self.abi = abi
+        self.process = None
 
     def __init__(self) -> None:
         self._device = None
         self.name = "invalid"
+        self.process = None
 
     def isEmpty(self) -> bool:
         return self.name == "invalid"
@@ -145,23 +147,54 @@ class AVD:
             return True
         return False
 
-    def start(self, extra_options="") -> bool:
+    def start(self, detach=False, config="") -> subprocess.Popen:
         """
         Start the AVD
 
+        Args:
+            detach (bool, optional): Detach process. Defaults to False.
+            config (str, optional): Custom config string. Defaults to "".
+
         Raises:
-            Exception: If avdmanager is not found
+            Exception: If emulator is not found
+            e: If the emulator times out
+
+        Returns:
+            subprocess.Popen: The process of the emulator
         """
         cmd_args = [emulator_cmd, "-avd", self.name]
-        if (extra_options):
-            cmd_args += shlex.split(extra_options)
-        print(cmd_args)
+        if (config):
+            cmd_args += shlex.split(config)
         try:
-            res = subprocess.run(
+            proc = subprocess.Popen(
                 cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # The emulator needs a second to load, so we wait a second if we want to detach
+            if detach:
+                proc.wait(1)
+            else:
+                proc.wait()
         except OSError:
             raise Exception("Could not find emulator")
-        return res.stdout and not res.stderr
+        except subprocess.TimeoutExpired as e:
+            if not detach:
+                raise e
+        self.process = proc
+        return proc
+
+    def stop(self) -> bool:
+        """
+        Stop the AVD
+
+        Returns:
+            bool: True if the AVD was stopped, False otherwise
+        """
+        if not self.process:
+            return False
+        self.process.kill()
+        # Wait for zombie process to exit
+        self.process.wait()
+        self.process = None
+        return True
 
 
 def get_targets() -> list[Target]:

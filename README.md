@@ -1,5 +1,5 @@
 # pyavd
-A python wrapper for the avdmanager command line tool
+A python wrapper for the avdmanager and emulator command line tool
 
 Pyavd is a wrapper for the [avdmanager from google](https://developer.android.com/studio/command-line/avdmanager) and the commonly used [emulator from google](https://developer.android.com/studio/run/emulator-commandline). You can create, manage and start Android Virtual Devices (AVDs) using python.
 
