@@ -94,6 +94,7 @@ class AVD:
 
     def move(self, new_path: str) -> bool:
         """
+        NOT IMPLEMENTED\n
         Move the AVD to a new path
 
         Args:
@@ -105,20 +106,8 @@ class AVD:
         Returns:
             bool: True if the move was successful, False otherwise
         """
-        print("I cant figure this out yet")
-        return
-        filename = os.path.basename(self.path)
-        new_path = os.path.join(new_path.strip(), filename)
-        cmd_args = [avd_cmd, "move", "avd", "-n", self.name, "-p", new_path]
-        try:
-            res = subprocess.run(
-                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except OSError:
-            raise Exception("Could not find avdmanager")
-        print(cmd_args)
-        if res.stdout:
-            print(res)
-            self.path = new_path
+        raise NotImplementedError()
+        return False
 
     def rename(self, new_name: str) -> bool:
         """
@@ -379,15 +368,21 @@ def get_avds() -> list[AVD]:
     return avds
 
 
-def create_avd(name: str, package: str, force: bool = False, device: str = None, sdcard: str = None, tag: str = None, skin: str = None, abi: str = None, path: str = None) -> AVD:
+def get_avd_by_name(name: str) -> AVD:
+    for avd in get_avds():
+        if avd.name == name:
+            return avd
+    return None
+
+def create_avd(name: str, package: str, device: Device, force: bool = False, sdcard: str = None, tag: str = None, skin: str = None, abi: str = None, path: str = None) -> AVD:
     """
     Create a new AVD with the given name and package
 
     Args:
         name (str): Name of the new AVD
         package (str): Package path of the system image for this AVD (e.g. 'system-images;android-19;google_apis;x86')
+        device (str): The device which the emulator is based on
         force (bool, optional): Forces creation (overwrites an existing AVD). Defaults to False.
-        device (str, optional): The optional device definition to use. Can be a device index or id. Defaults to None.
         sdcard (str, optional): Path to a shared SD card image, or size of a new sdcard for the new AVD. Defaults to None.
         tag (str, optional): The sys-img tag to use for the AVD. The default is to auto-select if the platform has only one tag for its system images. Defaults to None.
         skin (str, optional): Skin of the AVD. Defaults to None.
@@ -400,9 +395,7 @@ def create_avd(name: str, package: str, force: bool = False, device: str = None,
     Returns:
         AVD: The newly created AVD
     """
-    # TODO fix this
     inclusion_dict = {
-        "--device": device,
         "--sdcard": sdcard,
         "--tag": tag,
         "--skin": skin,
@@ -410,15 +403,16 @@ def create_avd(name: str, package: str, force: bool = False, device: str = None,
         "--path": path,
     }
     cmd_args = [avd_cmd, "create", "avd", "-n",
-                name, "--package", package, "--force", force]
+                name, "--package", package, "--device", str(device.id)]
     for key, value in inclusion_dict.items():
         if (value):
             cmd_args.append(key)
-            cmd_args.append(value)
-    print(cmd_args)
-    return
+            cmd_args.append(str(value))
+    if(force):
+        cmd_args += "--force"
     try:
-        res = subprocess.run(
+        subprocess.run(
             cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
         raise Exception("Could not find avdmanager")
+    return get_avd_by_name(name)
