@@ -1,8 +1,11 @@
 import re
 import os
+import shlex
 import subprocess
 
 avd_cmd = "avdmanager"
+emulator_cmd = "emulator"
+
 
 class Target:
     def __init__(self, id: int, id_alias: str, name: str, type: str, api_level: int, revision: int) -> None:
@@ -13,35 +16,35 @@ class Target:
         self.api_level = api_level
         self.revision = revision
 
-    def isEmpty(self):
+    def isEmpty(self) -> bool:
         return self.id == -1
 
     def __init__(self) -> None:
         self.id = -1
-        pass
-        
+
+
 class Device:
-    def __init__(self, id: int, id_alias: str, name: str, oem: str, tag: str="") -> None:
+    def __init__(self, id: int, id_alias: str, name: str, oem: str, tag: str = "") -> None:
         self.id = id
         self.id_alias = id_alias
         self.name = name
         self.oem = oem
         self.tag = tag
 
-    def isEmpty(self):
+    def isEmpty(self) -> bool:
         return self.id == -1
 
     def __init__(self) -> None:
         self.id = -1
         self.tag = ""
-        pass
+
 
 class AVD:
     def __init__(self, name: str, device: Device, path: str, target: str, skin: str, sdcard_size: str, based_on: str, abi: str) -> None:
         self.name = name
         self._device = device
         # Check if path exists
-        if( not os.path.isfile(path)):
+        if (not os.path.isfile(path)):
             raise Exception("Path does not exist")
         self.path = path
         self.target = target
@@ -50,47 +53,64 @@ class AVD:
         self.based_on = based_on
         self.abi = abi
 
-    def isEmpty(self):
-        return self.name == "invalid"
-
     def __init__(self) -> None:
         self._device = None
         self.name = "invalid"
 
+    def isEmpty(self) -> bool:
+        return self.name == "invalid"
+
     @property
-    def device(self):
+    def device(self) -> Device | None:
         return self._device
-    
+
     @device.getter
-    def device(self):
+    def device(self) -> Device | None:
         return self._device
 
     @device.setter
     def device(self, device: str):
-        # Remove everything inside the parentheses so we can actually compare it 
+        # Remove everything inside the parentheses so we can actually compare it
         device = re.sub("[\(\[].*?[\)\]]", "", device).strip()
         # Find the corrent device to the string
         for d in get_devices():
-            if(d.id_alias == device):
+            if (d.id_alias == device):
                 self._device = d
                 return
 
     def delete(self) -> bool:
+        """
+        Delete the AVD
+        """
         cmd_args = [avd_cmd, "delete", "avd", "-n", self.name]
-        try: 
-            res = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            res = subprocess.run(
+                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except OSError:
             raise Exception("Could not find avdmanager")
         return res.stdout and not res.stderr
-    
-    def move(self, new_path: str):
+
+    def move(self, new_path: str) -> bool:
+        """
+        Move the AVD to a new path
+
+        Args:
+            new_path (str): New path to move the AVD to
+
+        Raises:
+            Exception: If avdmanager is not found
+
+        Returns:
+            bool: True if the move was successful, False otherwise
+        """
         print("I cant figure this out yet")
         return
         filename = os.path.basename(self.path)
         new_path = os.path.join(new_path.strip(), filename)
         cmd_args = [avd_cmd, "move", "avd", "-n", self.name, "-p", new_path]
-        try: 
-            res = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            res = subprocess.run(
+                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except OSError:
             raise Exception("Could not find avdmanager")
         print(cmd_args)
@@ -99,25 +119,65 @@ class AVD:
             self.path = new_path
 
     def rename(self, new_name: str) -> bool:
+        """
+        Rename the AVD
+
+        Args:
+            new_name (str): New name for the AVD
+
+        Raises:
+            Exception: If avdmanager is not found
+
+        Returns:
+            bool: True if the rename was successful, False otherwise
+        """
         cmd_args = [avd_cmd, "move", "avd", "-n", self.name, "-r", new_name]
-        try: 
-            res = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            res = subprocess.run(
+                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except OSError:
             raise Exception("Could not find avdmanager")
         if res.stdout and not res.stderr:
             # Correct the filename and filepath to the new filename and path
             self.name = new_name
-            self.path = os.path.join(os.path.dirname(os.path.abspath(self.path)), self.name + ".avd")
+            self.path = os.path.join(os.path.dirname(
+                os.path.abspath(self.path)), self.name + ".avd")
             return True
         return False
 
-    def start(self):
-        pass
+    def start(self, extra_options="") -> bool:
+        """
+        Start the AVD
+
+        Raises:
+            Exception: If avdmanager is not found
+        """
+        cmd_args = [emulator_cmd, "-avd", self.name]
+        if (extra_options):
+            cmd_args += shlex.split(extra_options)
+        print(cmd_args)
+        try:
+            res = subprocess.run(
+                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except OSError:
+            raise Exception("Could not find emulator")
+        return res.stdout and not res.stderr
+
 
 def get_targets() -> list[Target]:
+    """
+    Get a list of all available targets
+
+    Raises:
+        Exception: If avdmanager is not found
+
+    Returns:
+        list[Target]: List of all available targets
+    """
     cmd_args = [avd_cmd, "list", "target"]
-    try: 
-        res = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        res = subprocess.run(
+            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
         raise Exception("Could not find avdmanager")
 
@@ -125,48 +185,59 @@ def get_targets() -> list[Target]:
     # Parse devices from output
     if res.stdout:
         current_target = Target()
-        for line in res.stdout.decode("utf-8").split(os.linesep):
+        for line in res.stdout.decode("utf-8").split("\n"):
             stripped_line = line.strip()
-            if(not stripped_line):
+            if (not stripped_line):
                 continue
 
             # If "----------" is seen a new target definition begins
             # So we add the old current target and overwrite it
-            if(stripped_line == "----------"):
-                if(not current_target.isEmpty()):
+            if (stripped_line == "----------"):
+                if (not current_target.isEmpty()):
                     targets.append(current_target)
                 current_target = Target()
                 continue
-            
+
             # If there is no : in the line, its not a valid key value pair
-            if(":" not in stripped_line):
+            if (":" not in stripped_line):
                 continue
 
             key, value = stripped_line.split(":")
             key = key.strip().upper()
             value = value.strip()
-            if(key == "id".upper()):
+            if (key == "id".upper()):
                 id, alias = value.split(" or ")
                 current_target.id = int(id.strip())
                 current_target.id_alias = alias.strip().replace('"', '')
-            elif(key == "Name".upper()):
+            elif (key == "Name".upper()):
                 current_target.name = value
-            elif(key == "Type".upper()):
+            elif (key == "Type".upper()):
                 current_target.type = value
-            elif(key == "API Level".upper()):
+            elif (key == "API Level".upper()):
                 current_target.api_level = int(value)
-            elif(key == "Revision".upper()):
+            elif (key == "Revision".upper()):
                 current_target.revision = int(value)
 
         # Add the last target
-        if(not current_target.isEmpty()):
-            targets.append(current_target)  
+        if (not current_target.isEmpty()):
+            targets.append(current_target)
     return targets
 
+
 def get_devices() -> list[Device]:
+    """
+    Get a list of all available devices
+
+    Raises:
+        Exception: If avdmanager is not found
+
+    Returns:
+        list[Device]: List of all available devices
+    """
     cmd_args = [avd_cmd, "list", "device"]
-    try: 
-        res = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        res = subprocess.run(
+            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
         raise Exception("Could not find avdmanager")
 
@@ -174,47 +245,57 @@ def get_devices() -> list[Device]:
     # Parse devices from output
     if res.stdout:
         current_device = Device()
-        for line in res.stdout.decode("utf-8").split(os.linesep):
+        for line in res.stdout.decode("utf-8").split("\n"):
             stripped_line = line.strip()
-            if(not stripped_line):
+            if (not stripped_line):
                 continue
             # If "---------" is seen a new target definition begins
             # So we add the old current target and overwrite it
-            if(stripped_line == "---------"):
-                if(not current_device.isEmpty()):
+            if (stripped_line == "---------"):
+                if (not current_device.isEmpty()):
                     devices.append(current_device)
                 current_device = Device()
                 continue
-            
-            # If there is no : in the line, its not a valid key value pair
-            if(":" not in stripped_line):
-                continue
 
+            # If there is no : in the line, its not a valid key value pair
+            if (":" not in stripped_line or stripped_line.count(":") > 2):
+                continue
             key, value = stripped_line.split(":")
             key = key.strip().upper()
             value = value.strip()
 
-            if(key == "id".upper()):
+            if (key == "id".upper()):
                 id, alias = value.split(" or ")
                 current_device.id = int(id.strip())
                 current_device.id_alias = alias.strip().replace('"', '')
-            elif(key == "Name".upper()):
+            elif (key == "Name".upper()):
                 current_device.name = value
-            elif(key == "OEM".upper()):
+            elif (key == "OEM".upper()):
                 current_device.oem = value
-            elif(key == "Tag".upper()):
+            elif (key == "Tag".upper()):
                 current_device.tag = value
 
         # Append last device
-        if(not current_device.isEmpty()):
+        if (not current_device.isEmpty()):
             devices.append(current_device)
-    
+
     return devices
 
-def get_avds():
+
+def get_avds() -> list[AVD]:
+    """
+    Get a list of all available AVDs
+
+    Raises:
+        Exception: If avdmanager is not found
+
+    Returns:
+        list[AVD]: List of all available AVDs
+    """
     cmd_args = [avd_cmd, "list", "avd"]
-    try: 
-        res = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        res = subprocess.run(
+            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
         raise Exception("Could not find avdmanager")
 
@@ -222,49 +303,71 @@ def get_avds():
     # Parse avds from output
     if res.stdout:
         current_avd = AVD()
-        for line in res.stdout.decode("utf-8").split(os.linesep):
+        for line in res.stdout.decode("utf-8").split("\n"):
             stripped_line = line.strip()
-            if(not stripped_line):
+            if (not stripped_line):
                 continue
             # If "---------" is seen a new target definition begins
             # So we add the old current target and overwrite it
-            if(stripped_line == "---------"):
-                if(not current_avd.isEmpty()):
+            if (stripped_line == "---------"):
+                if (not current_avd.isEmpty()):
                     avds.append(current_avd)
                 current_avd = AVD()
                 continue
-            
+
             # If there is no : in the line, its not a valid key value pair
-            if(":" not in stripped_line):
+            if (":" not in stripped_line):
                 continue
 
             key, value, *rest = stripped_line.split(":")
             key = key.strip().upper()
-            value = value.strip()   
-            if(key == "Name".upper()):
+            value = value.strip()
+            if (key == "Name".upper()):
                 current_avd.name = value
-            elif(key == "Device".upper()):
+            elif (key == "Device".upper()):
                 current_avd.device = value
-            elif(key == "Path".upper()):
+            elif (key == "Path".upper()):
                 current_avd.path = value
-            elif(key == "Target".upper()):
+            elif (key == "Target".upper()):
                 current_avd.target = value
-            elif(key == "Skin".upper()):
+            elif (key == "Skin".upper()):
                 current_avd.skin = value
-            elif(key == "Sdcard".upper()):
+            elif (key == "Sdcard".upper()):
                 current_avd.sdcard_size = value
-            elif(key == "Based on".upper()):
+            elif (key == "Based on".upper()):
                 # Based on: Android 12L (Sv2) Tag/ABI: google_apis/x86_64
                 current_avd.based_on = value.replace("Tag/ABI", "").strip()
                 current_avd.abi = rest[0].strip()
-    
+
         # Append last avd
-        if(not current_avd.isEmpty()):
+        if (not current_avd.isEmpty()):
             avds.append(current_avd)
 
     return avds
 
-def create_avd(name, package, force=False, device=None, sdcard=None, tag=None, skin=None, abi=None, path=None):
+
+def create_avd(name: str, package: str, force: bool = False, device: str = None, sdcard: str = None, tag: str = None, skin: str = None, abi: str = None, path: str = None) -> AVD:
+    """
+    Create a new AVD with the given name and package
+
+    Args:
+        name (str): Name of the new AVD
+        package (str): Package path of the system image for this AVD (e.g. 'system-images;android-19;google_apis;x86')
+        force (bool, optional): Forces creation (overwrites an existing AVD). Defaults to False.
+        device (str, optional): The optional device definition to use. Can be a device index or id. Defaults to None.
+        sdcard (str, optional): Path to a shared SD card image, or size of a new sdcard for the new AVD. Defaults to None.
+        tag (str, optional): The sys-img tag to use for the AVD. The default is to auto-select if the platform has only one tag for its system images. Defaults to None.
+        skin (str, optional): Skin of the AVD. Defaults to None.
+        abi (str, optional): The ABI to use for the AVD. The default is to auto-select the ABI if the platform has only one ABI for its system images. Defaults to None.
+        path (str, optional): Directory where the new AVD will be created. Defaults to None.
+
+    Raises:
+        Exception: If avdmanager is not found
+
+    Returns:
+        AVD: The newly created AVD
+    """
+    # TODO fix this
     inclusion_dict = {
         "--device": device,
         "--sdcard": sdcard,
@@ -273,17 +376,16 @@ def create_avd(name, package, force=False, device=None, sdcard=None, tag=None, s
         "--abi": abi,
         "--path": path,
     }
-    cmd_args = [avd_cmd, "create", "avd", "-n", name, "--package", package, "--force", force]
+    cmd_args = [avd_cmd, "create", "avd", "-n",
+                name, "--package", package, "--force", force]
     for key, value in inclusion_dict.items():
-        if(value):
+        if (value):
             cmd_args.append(key)
             cmd_args.append(value)
     print(cmd_args)
     return
-    try: 
-        res = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        res = subprocess.run(
+            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
         raise Exception("Could not find avdmanager")
-
-
-
