@@ -210,7 +210,9 @@ class AVD:
         return proc
 
     def stop(self) -> bool:
-        raise NotImplementedError()
+        if not self.process:
+            return False
+        return True
 
     def kill(self) -> bool:
         """
@@ -227,6 +229,17 @@ class AVD:
         self.process.wait()
         self.process = None
         return True
+
+def execute_command(command: list[str]) -> subprocess.CompletedProcess[bytes]:
+    try:
+        res = subprocess.run(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except OSError:
+        raise Exception("Could not find avdmanager")
+    return res
+
+def execute_avd_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
+    return execute_command([avd_cmd] + args)
 
 
 def get_targets() -> list[Target]:
