@@ -15,12 +15,13 @@ class Target:
         self.type = type
         self.api_level = api_level
         self.revision = revision
-
-    def isEmpty(self) -> bool:
-        return self.id == -1
-
+    
     def __init__(self) -> None:
         self.id = -1
+
+    def is_empty(self) -> bool:
+        return self.id == -1
+
 
 
 class Device:
@@ -30,13 +31,14 @@ class Device:
         self.name = name
         self.oem = oem
         self.tag = tag
-
-    def isEmpty(self) -> bool:
-        return self.id == -1
-
+    
     def __init__(self) -> None:
         self.id = -1
         self.tag = ""
+
+    def is_empty(self) -> bool:
+        return self.id == -1
+
 
 
 class AVD:
@@ -59,7 +61,7 @@ class AVD:
         self.name = "invalid"
         self.process = None
 
-    def isEmpty(self) -> bool:
+    def is_empty(self) -> bool:
         return self.name == "invalid"
 
     @property
@@ -73,7 +75,7 @@ class AVD:
     @device.setter
     def device(self, device: str):
         # Remove everything inside the parentheses so we can actually compare it
-        device = re.sub("[\(\[].*?[\)\]]", "", device).strip()
+        device = re.sub(r"[\(\[].*?[\)\]]", "", device).strip()
         # Find the corrent device to the string
         for d in get_devices():
             if (d.id_alias == device):
@@ -152,6 +154,7 @@ class AVD:
             subprocess.Popen: The process of the emulator
         """
         cmd_args = [emulator_cmd, "-avd", self.name]
+        proc = None
         if (config):
             cmd_args += shlex.split(config)
         try:
@@ -164,9 +167,11 @@ class AVD:
                 proc.wait()
         except OSError:
             raise Exception("Could not find emulator")
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             if not detach:
-                raise e
+                raise
+        if proc is None:
+            raise Exception("Could not get process")
         self.process = proc
         return proc
 
@@ -215,7 +220,7 @@ def get_targets() -> list[Target]:
             # If "----------" is seen a new target definition begins
             # So we add the old current target and overwrite it
             if (stripped_line == "----------"):
-                if (not current_target.isEmpty()):
+                if (not current_target.is_empty()):
                     targets.append(current_target)
                 current_target = Target()
                 continue
@@ -227,6 +232,7 @@ def get_targets() -> list[Target]:
             key, value = stripped_line.split(":")
             key = key.strip().upper()
             value = value.strip()
+            # TODO match?
             if (key == "id".upper()):
                 id, alias = value.split(" or ")
                 current_target.id = int(id.strip())
@@ -241,7 +247,7 @@ def get_targets() -> list[Target]:
                 current_target.revision = int(value)
 
         # Add the last target
-        if (not current_target.isEmpty()):
+        if (not current_target.is_empty()):
             targets.append(current_target)
     return targets
 
@@ -274,7 +280,7 @@ def get_devices() -> list[Device]:
             # If "---------" is seen a new target definition begins
             # So we add the old current target and overwrite it
             if (stripped_line == "---------"):
-                if (not current_device.isEmpty()):
+                if (not current_device.is_empty()):
                     devices.append(current_device)
                 current_device = Device()
                 continue
@@ -286,6 +292,7 @@ def get_devices() -> list[Device]:
             key = key.strip().upper()
             value = value.strip()
 
+            # TODO match?
             if (key == "id".upper()):
                 id, alias = value.split(" or ")
                 current_device.id = int(id.strip())
@@ -298,7 +305,7 @@ def get_devices() -> list[Device]:
                 current_device.tag = value
 
         # Append last device
-        if (not current_device.isEmpty()):
+        if (not current_device.is_empty()):
             devices.append(current_device)
 
     return devices
@@ -332,7 +339,7 @@ def get_avds() -> list[AVD]:
             # If "---------" is seen a new target definition begins
             # So we add the old current target and overwrite it
             if (stripped_line == "---------"):
-                if (not current_avd.isEmpty()):
+                if (not current_avd.is_empty()):
                     avds.append(current_avd)
                 current_avd = AVD()
                 continue
@@ -344,6 +351,7 @@ def get_avds() -> list[AVD]:
             key, value, *rest = stripped_line.split(":")
             key = key.strip().upper()
             value = value.strip()
+            # TODO match?
             if (key == "Name".upper()):
                 current_avd.name = value
             elif (key == "Device".upper()):
@@ -362,19 +370,19 @@ def get_avds() -> list[AVD]:
                 current_avd.abi = rest[0].strip()
 
         # Append last avd
-        if (not current_avd.isEmpty()):
+        if (not current_avd.is_empty()):
             avds.append(current_avd)
 
     return avds
 
 
-def get_avd_by_name(name: str) -> AVD:
+def get_avd_by_name(name: str) -> AVD | None:
     for avd in get_avds():
         if avd.name == name:
             return avd
     return None
 
-def create_avd(name: str, package: str, device: Device, force: bool = False, sdcard: str = None, tag: str = None, skin: str = None, abi: str = None, path: str = None) -> AVD:
+def create_avd(name: str, package: str, device: Device, force: bool = False, sdcard: str | None = None, tag: str | None = None, skin: str | None = None, abi: str | None = None, path: str | None = None) -> AVD | None:
     """
     Create a new AVD with the given name and package
 
