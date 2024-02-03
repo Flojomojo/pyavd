@@ -26,6 +26,9 @@ class Target:
         self.id = -1
 
     def is_empty(self) -> bool:
+        """
+        Returns: True if the Target is empty
+        """
         return self.id == -1
 
 
@@ -47,6 +50,9 @@ class Device:
         self.tag = ""
 
     def is_empty(self) -> bool:
+        """
+        Returns: True if the Device is empty
+        """
         return self.id == -1
 
 
@@ -79,6 +85,10 @@ class AVD:
         self.process = None
 
     def is_empty(self) -> bool:
+        """
+        Returns:
+            True if the AVD is empty
+        """
         return self.name == "invalid"
 
     @property
@@ -101,7 +111,13 @@ class AVD:
 
     def delete(self) -> bool:
         """
-        Delete the AVD
+        Deletes the avd
+
+        Raises:
+            Exception: If the avdmanager could not be found
+
+        Returns:
+            True if successful
         """
         cmd_args = [avd_cmd, "delete", "avd", "-n", self.name]
         try:
@@ -113,7 +129,7 @@ class AVD:
 
     def move(self, new_path: str) -> bool:
         """
-        NOT IMPLEMENTED\n
+        NOTE: NOT IMPLEMENTED\n
         Move the AVD to a new path
 
         Args:
@@ -155,7 +171,7 @@ class AVD:
             return True
         return False
 
-    def start(self, detach=False, config="") -> subprocess.Popen:
+    def start(self, detach: bool = False, config: str = "") -> subprocess.Popen:
         """
         Start the AVD
 
@@ -165,7 +181,8 @@ class AVD:
 
         Raises:
             Exception: If emulator is not found
-            e: If the emulator times out
+            subprocess.TimeoutExpired: If the emulator times out
+            Exception: If the process could not be found
 
         Returns:
             subprocess.Popen: The process of the emulator
@@ -193,8 +210,12 @@ class AVD:
         return proc
 
     def stop(self) -> bool:
+        raise NotImplementedError()
+
+    def kill(self) -> bool:
         """
-        Stop the AVD
+        Kills the AVD
+        Note: Preferably use stop()
 
         Returns:
             bool: True if the AVD was stopped, False otherwise
@@ -394,6 +415,15 @@ def get_avds() -> list[AVD]:
 
 
 def get_avd_by_name(name: str) -> AVD | None:
+    """
+    Get a avd by its name
+
+    Args:
+        name: The name of the avd
+
+    Returns:
+        AVD | None: The avd if one was found, None otherwise
+    """
     for avd in get_avds():
         if avd.name == name:
             return avd
