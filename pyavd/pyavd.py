@@ -8,11 +8,17 @@ emulator_cmd = "emulator"
 
 
 class Target:
-    def __init__(self, id: int, id_alias: str, name: str, type: str, api_level: int, revision: int) -> None:
+    def __init__(self,
+                 id: int,
+                 id_alias: str,
+                 name: str,
+                 target_type: str,
+                 api_level: int,
+                 revision: int) -> None:
         self.id = id
         self.id_alias = id_alias
         self.name = name
-        self.type = type
+        self.target_type = target_type
         self.api_level = api_level
         self.revision = revision
     
@@ -23,9 +29,13 @@ class Target:
         return self.id == -1
 
 
-
 class Device:
-    def __init__(self, id: int, id_alias: str, name: str, oem: str, tag: str = "") -> None:
+    def __init__(self,
+                 id: int,
+                 id_alias: str,
+                 name: str,
+                 oem: str,
+                 tag: str = "") -> None:
         self.id = id
         self.id_alias = id_alias
         self.name = name
@@ -40,13 +50,20 @@ class Device:
         return self.id == -1
 
 
-
 class AVD:
-    def __init__(self, name: str, device: Device, path: str, target: str, skin: str, sdcard_size: str, based_on: str, abi: str) -> None:
+    def __init__(self, 
+                 name: str,
+                 device: Device,
+                 path: str,
+                 target: str,
+                 skin: str,
+                 sdcard_size: str,
+                 based_on: str,
+                 abi: str) -> None:
         self.name = name
         self._device = device
         # Check if path exists
-        if (not os.path.isfile(path)):
+        if not os.path.isfile(path):
             raise Exception("Path does not exist")
         self.path = path
         self.target = target
@@ -78,7 +95,7 @@ class AVD:
         device = re.sub(r"[\(\[].*?[\)\]]", "", device).strip()
         # Find the corrent device to the string
         for d in get_devices():
-            if (d.id_alias == device):
+            if d.id_alias == device:
                 self._device = d
                 return
 
@@ -155,7 +172,7 @@ class AVD:
         """
         cmd_args = [emulator_cmd, "-avd", self.name]
         proc = None
-        if (config):
+        if config:
             cmd_args += shlex.split(config)
         try:
             proc = subprocess.Popen(
@@ -214,40 +231,40 @@ def get_targets() -> list[Target]:
         current_target = Target()
         for line in res.stdout.decode("utf-8").split("\n"):
             stripped_line = line.strip()
-            if (not stripped_line):
+            if not stripped_line:
                 continue
 
-            # If "----------" is seen a new target definition begins
-            # So we add the old current target and overwrite it
-            if (stripped_line == "----------"):
-                if (not current_target.is_empty()):
+            # If "----------" is seen, a new target definition begins
+            # So we add the current target to the targets and start a new one
+            if stripped_line == "----------":
+                if not current_target.is_empty():
                     targets.append(current_target)
                 current_target = Target()
                 continue
 
             # If there is no : in the line, its not a valid key value pair
-            if (":" not in stripped_line):
+            if ":" not in stripped_line:
                 continue
 
             key, value = stripped_line.split(":")
             key = key.strip().upper()
             value = value.strip()
             # TODO match?
-            if (key == "id".upper()):
+            if key == "id".upper():
                 id, alias = value.split(" or ")
                 current_target.id = int(id.strip())
                 current_target.id_alias = alias.strip().replace('"', '')
-            elif (key == "Name".upper()):
+            elif key == "Name".upper():
                 current_target.name = value
-            elif (key == "Type".upper()):
-                current_target.type = value
-            elif (key == "API Level".upper()):
+            elif key == "Type".upper():
+                current_target.target_type = value
+            elif key == "API Level".upper():
                 current_target.api_level = int(value)
-            elif (key == "Revision".upper()):
+            elif key == "Revision".upper():
                 current_target.revision = int(value)
 
         # Add the last target
-        if (not current_target.is_empty()):
+        if not current_target.is_empty():
             targets.append(current_target)
     return targets
 
@@ -275,37 +292,37 @@ def get_devices() -> list[Device]:
         current_device = Device()
         for line in res.stdout.decode("utf-8").split("\n"):
             stripped_line = line.strip()
-            if (not stripped_line):
+            if not stripped_line:
                 continue
             # If "---------" is seen a new target definition begins
             # So we add the old current target and overwrite it
-            if (stripped_line == "---------"):
-                if (not current_device.is_empty()):
+            if stripped_line == "---------":
+                if not current_device.is_empty():
                     devices.append(current_device)
                 current_device = Device()
                 continue
 
             # If there is no : in the line, its not a valid key value pair
-            if (":" not in stripped_line or stripped_line.count(":") > 2):
+            if ":" not in stripped_line or stripped_line.count(":") > 2:
                 continue
             key, value = stripped_line.split(":")
             key = key.strip().upper()
             value = value.strip()
 
             # TODO match?
-            if (key == "id".upper()):
+            if key == "id".upper():
                 id, alias = value.split(" or ")
                 current_device.id = int(id.strip())
                 current_device.id_alias = alias.strip().replace('"', '')
-            elif (key == "Name".upper()):
+            elif key == "Name".upper():
                 current_device.name = value
-            elif (key == "OEM".upper()):
+            elif key == "OEM".upper():
                 current_device.oem = value
-            elif (key == "Tag".upper()):
+            elif key == "Tag".upper():
                 current_device.tag = value
 
         # Append last device
-        if (not current_device.is_empty()):
+        if not current_device.is_empty():
             devices.append(current_device)
 
     return devices
@@ -334,43 +351,43 @@ def get_avds() -> list[AVD]:
         current_avd = AVD()
         for line in res.stdout.decode("utf-8").split("\n"):
             stripped_line = line.strip()
-            if (not stripped_line):
+            if not stripped_line:
                 continue
-            # If "---------" is seen a new target definition begins
-            # So we add the old current target and overwrite it
-            if (stripped_line == "---------"):
-                if (not current_avd.is_empty()):
+            # If "---------" is seen, a new target definition begins
+            # So we add the old current target to the list and start a new one
+            if stripped_line == "---------":
+                if not current_avd.is_empty():
                     avds.append(current_avd)
                 current_avd = AVD()
                 continue
 
             # If there is no : in the line, its not a valid key value pair
-            if (":" not in stripped_line):
+            if ":" not in stripped_line:
                 continue
 
             key, value, *rest = stripped_line.split(":")
             key = key.strip().upper()
             value = value.strip()
             # TODO match?
-            if (key == "Name".upper()):
+            if key == "Name".upper():
                 current_avd.name = value
-            elif (key == "Device".upper()):
+            elif key == "Device".upper():
                 current_avd.device = value
-            elif (key == "Path".upper()):
+            elif key == "Path".upper():
                 current_avd.path = value
-            elif (key == "Target".upper()):
+            elif key == "Target".upper():
                 current_avd.target = value
-            elif (key == "Skin".upper()):
+            elif key == "Skin".upper():
                 current_avd.skin = value
-            elif (key == "Sdcard".upper()):
+            elif key == "Sdcard".upper():
                 current_avd.sdcard_size = value
-            elif (key == "Based on".upper()):
+            elif key == "Based on".upper():
                 # Based on: Android 12L (Sv2) Tag/ABI: google_apis/x86_64
                 current_avd.based_on = value.replace("Tag/ABI", "").strip()
                 current_avd.abi = rest[0].strip()
 
         # Append last avd
-        if (not current_avd.is_empty()):
+        if not current_avd.is_empty():
             avds.append(current_avd)
 
     return avds
@@ -382,7 +399,16 @@ def get_avd_by_name(name: str) -> AVD | None:
             return avd
     return None
 
-def create_avd(name: str, package: str, device: Device, force: bool = False, sdcard: str | None = None, tag: str | None = None, skin: str | None = None, abi: str | None = None, path: str | None = None) -> AVD | None:
+
+def create_avd(name: str, 
+               package: str,
+               device: Device,
+               force: bool = False,
+               sdcard: str | None = None,
+               tag: str | None = None,
+               skin: str | None = None,
+               abi: str | None = None,
+               path: str | None = None) -> AVD | None:
     """
     Create a new AVD with the given name and package
 
@@ -413,10 +439,10 @@ def create_avd(name: str, package: str, device: Device, force: bool = False, sdc
     cmd_args = [avd_cmd, "create", "avd", "-n",
                 name, "--package", package, "--device", str(device.id)]
     for key, value in inclusion_dict.items():
-        if (value):
+        if value:
             cmd_args.append(key)
             cmd_args.append(str(value))
-    if(force):
+    if force:
         cmd_args += "--force"
     try:
         subprocess.run(
