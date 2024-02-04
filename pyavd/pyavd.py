@@ -125,12 +125,8 @@ class AVD:
         Returns:
             True if successful
         """
-        cmd_args = [avd_cmd, "delete", "avd", "-n", self.name]
-        try:
-            res = subprocess.run(
-                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except OSError:
-            raise Exception("Could not find avdmanager")
+        cmd_args = ["delete", "avd", "-n", self.name]
+        res = execute_avd_command(cmd_args)
         return res.stdout and not res.stderr
 
     def move(self, new_path: str) -> bool:
@@ -163,12 +159,8 @@ class AVD:
         Returns:
             bool: True if the rename was successful, False otherwise
         """
-        cmd_args = [avd_cmd, "move", "avd", "-n", self.name, "-r", new_name]
-        try:
-            res = subprocess.run(
-                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except OSError:
-            raise Exception("Could not find avdmanager")
+        cmd_args = ["move", "avd", "-n", self.name, "-r", new_name]
+        res = execute_avd_command(cmd_args)
         if res.stdout and not res.stderr:
             # Correct the filename and filepath to the new filename and path
             self.name = new_name
@@ -216,6 +208,8 @@ class AVD:
         return proc
 
     def stop(self) -> bool:
+        # TODO
+        raise NotImplementedError()
         if not self.process:
             return False
         return True
@@ -258,12 +252,8 @@ def get_targets() -> list[Target]:
     Returns:
         list[Target]: List of all available targets
     """
-    cmd_args = [avd_cmd, "list", "target"]
-    try:
-        res = subprocess.run(
-            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError:
-        raise Exception("Could not find avdmanager")
+    cmd_args = ["list", "target"]
+    res = execute_avd_command(cmd_args)
 
     targets = []
     # Parse devices from output
@@ -319,12 +309,8 @@ def get_devices() -> list[Device]:
     Returns:
         list[Device]: List of all available devices
     """
-    cmd_args = [avd_cmd, "list", "device"]
-    try:
-        res = subprocess.run(
-            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError:
-        raise Exception("Could not find avdmanager")
+    cmd_args = ["list", "device"]
+    res = execute_avd_command(cmd_args)
 
     devices = []
     # Parse devices from output
@@ -378,12 +364,8 @@ def get_avds() -> list[AVD]:
     Returns:
         list[AVD]: List of all available AVDs
     """
-    cmd_args = [avd_cmd, "list", "avd"]
-    try:
-        res = subprocess.run(
-            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError:
-        raise Exception("Could not find avdmanager")
+    cmd_args = ["list", "avd"]
+    res = execute_avd_command(cmd_args)
 
     avds = []
     # Parse avds from output
@@ -485,7 +467,7 @@ def create_avd(name: str,
         "--abi": abi,
         "--path": path,
     }
-    cmd_args = [avd_cmd, "create", "avd", "-n",
+    cmd_args = ["create", "avd", "-n",
                 name, "--package", package, "--device", str(device.id)]
     for key, value in inclusion_dict.items():
         if value:
@@ -493,11 +475,7 @@ def create_avd(name: str,
             cmd_args.append(str(value))
     if force:
         cmd_args += "--force"
-    try:
-        res = subprocess.run(
-            cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError:
-        raise Exception("Could not find avdmanager")
+    res = execute_avd_command(cmd_args)
     # Check stderr
     if res.stderr.decode() != "":
         logging.warning(res.stderr.decode())
