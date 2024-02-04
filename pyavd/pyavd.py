@@ -1,3 +1,5 @@
+# TODO remove in future versions
+from __future__ import annotations
 import re
 import os
 import shlex
@@ -29,6 +31,63 @@ class Target:
         """
         return self.id == -1
 
+    @classmethod
+    def get_targets(cls) -> list[Target]:
+        """
+        Get a list of all available targets
+
+        Raises:
+            Exception: If avdmanager is not found
+
+        Returns:
+            list[Target]: List of all available targets
+        """
+        cmd_args = ["list", "target"]
+        res = execute_avd_command(cmd_args)
+
+        targets = []
+        # Parse devices from output
+        if res.stdout:
+            current_target = Target()
+            for line in res.stdout.decode("utf-8").split("\n"):
+                stripped_line = line.strip()
+                if not stripped_line:
+                    continue
+
+                # If "----------" is seen, a new target definition begins
+                # So we add the current target to the targets and start a new one
+                if stripped_line == "----------":
+                    if not current_target.is_empty():
+                        targets.append(current_target)
+                    current_target = Target()
+                    continue
+
+                # If there is no : in the line, its not a valid key value pair
+                if ":" not in stripped_line:
+                    continue
+
+                key, value = stripped_line.split(":")
+                key = key.strip().upper()
+                value = value.strip()
+                # TODO match?
+                if key == "id".upper():
+                    id, alias = value.split(" or ")
+                    current_target.id = int(id.strip())
+                    current_target.id_alias = alias.strip().replace('"', '')
+                elif key == "Name".upper():
+                    current_target.name = value
+                elif key == "Type".upper():
+                    current_target.target_type = value
+                elif key == "API Level".upper():
+                    current_target.api_level = int(value)
+                elif key == "Revision".upper():
+                    current_target.revision = int(value)
+
+            # Add the last target
+            if not current_target.is_empty():
+                targets.append(current_target)
+        return targets
+
 
 class Device:
     def __init__(self,
@@ -49,6 +108,60 @@ class Device:
         """
         return self.id == -1
 
+    @classmethod
+    def get_devices(cls) -> list[Device]:
+        """
+        Get a list of all available devices
+
+        Raises:
+            Exception: If avdmanager is not found
+
+        Returns:
+            list[Device]: List of all available devices
+        """
+        cmd_args = ["list", "device"]
+        res = execute_avd_command(cmd_args)
+
+        devices = []
+        # Parse devices from output
+        if res.stdout:
+            current_device = Device()
+            for line in res.stdout.decode("utf-8").split("\n"):
+                stripped_line = line.strip()
+                if not stripped_line:
+                    continue
+                # If "---------" is seen a new target definition begins
+                # So we add the old current target and overwrite it
+                if stripped_line == "---------":
+                    if not current_device.is_empty():
+                        devices.append(current_device)
+                    current_device = Device()
+                    continue
+
+                # If there is no : in the line, its not a valid key value pair
+                if ":" not in stripped_line or stripped_line.count(":") > 2:
+                    continue
+                key, value = stripped_line.split(":")
+                key = key.strip().upper()
+                value = value.strip()
+
+                # TODO match?
+                if key == "id".upper():
+                    id, alias = value.split(" or ")
+                    current_device.id = int(id.strip())
+                    current_device.id_alias = alias.strip().replace('"', '')
+                elif key == "Name".upper():
+                    current_device.name = value
+                elif key == "OEM".upper():
+                    current_device.oem = value
+                elif key == "Tag".upper():
+                    current_device.tag = value
+
+            # Append last device
+            if not current_device.is_empty():
+                devices.append(current_device)
+
+        return devices
 
 class AVD:
     def __init__(self, 
@@ -102,6 +215,135 @@ class AVD:
             if d.id_alias == device:
                 self._device = d
                 return
+
+    @classmethod
+    def create_avd(cls,
+                   name: str, 
+                   package: str,
+                   device: Device,
+                   force: bool = False,
+                   sdcard: str | None = None,
+                   tag: str | None = None,
+                   skin: str | None = None,
+                   abi: str | None = None,
+                   path: str | None = None) -> AVD | None:
+        """
+        Create a new AVD with the given name and package
+
+        Args:
+            name (str): Name of the new AVD
+            package (str): Package path of the system image for this AVD (e.g. 'system-images;android-19;google_apis;x86')
+            device (str): The device which the emulator is based on
+            force (bool, optional): Forces creation (overwrites an existing AVD). Defaults to False.
+            sdcard (str, optional): Path to a shared SD card image, or size of a new sdcard for the new AVD. Defaults to None.
+            tag (str, optional): The sys-img tag to use for the AVD. The default is to auto-select if the platform has only one tag for its system images. Defaults to None.
+            skin (str, optional): Skin of the AVD. Defaults to None.
+            abi (str, optional): The ABI to use for the AVD. The default is to auto-select the ABI if the platform has only one ABI for its system images. Defaults to None.
+            path (str, optional): Directory where the new AVD will be created. Defaults to None.
+
+        Raises:
+            Exception: If avdmanager is not found
+
+        Returns:
+            AVD: The newly created AVD or None if there was an error
+        """
+        inclusion_dict = {
+            "--sdcard": sdcard,
+            "--tag": tag,
+            "--skin": skin,
+            "--abi": abi,
+            "--path": path,
+        }
+        cmd_args = ["create", "avd", "-n",
+                    name, "--package", package, "--device", str(device.id)]
+        for key, value in inclusion_dict.items():
+            if value:
+                cmd_args.append(key)
+                cmd_args.append(str(value))
+        if force:
+            cmd_args += "--force"
+        res = execute_avd_command(cmd_args)
+        # Check stderr
+        if res.stderr.decode() != "":
+            logging.warning(res.stderr.decode())
+        return cls.get_avd_by_name(name)
+
+    @classmethod
+    def get_avd_by_name(cls, name: str) -> AVD | None:
+        """
+        Get a avd by its name
+
+        Args:
+            name: The name of the avd
+
+        Returns:
+            AVD | None: The avd if one was found, None otherwise
+        """
+        for avd in cls.get_avds():
+            if avd.name == name:
+                return avd
+        return None
+
+    @classmethod
+    def get_avds(cls) -> list[AVD]:
+        """
+        Get a list of all available AVDs
+
+        Raises:
+            Exception: If avdmanager is not found
+
+        Returns:
+            list[AVD]: List of all available AVDs
+        """
+        cmd_args = ["list", "avd"]
+        res = execute_avd_command(cmd_args)
+
+        avds = []
+        # Parse avds from output
+        if res.stdout:
+            current_avd = AVD()
+            for line in res.stdout.decode("utf-8").split("\n"):
+                stripped_line = line.strip()
+                if not stripped_line:
+                    continue
+                # If "---------" is seen, a new target definition begins
+                # So we add the old current target to the list and start a new one
+                if stripped_line == "---------":
+                    if not current_avd.is_empty():
+                        avds.append(current_avd)
+                    current_avd = AVD()
+                    continue
+
+                # If there is no : in the line, its not a valid key value pair
+                if ":" not in stripped_line:
+                    continue
+
+                key, value, *rest = stripped_line.split(":")
+                key = key.strip().upper()
+                value = value.strip()
+                # TODO match?
+                if key == "Name".upper():
+                    current_avd.name = value
+                elif key == "Device".upper():
+                    current_avd.device = value
+                elif key == "Path".upper():
+                    current_avd.path = value
+                elif key == "Target".upper():
+                    current_avd.target = value
+                elif key == "Skin".upper():
+                    current_avd.skin = value
+                elif key == "Sdcard".upper():
+                    current_avd.sdcard_size = value
+                elif key == "Based on".upper():
+                    # Based on: Android 12L (Sv2) Tag/ABI: google_apis/x86_64
+                    current_avd.based_on = value.replace("Tag/ABI", "").strip()
+                    current_avd.abi = rest[0].strip()
+
+            # Append last avd
+            if not current_avd.is_empty():
+                avds.append(current_avd)
+
+        return avds
 
     def delete(self) -> bool:
         """
@@ -243,242 +485,3 @@ def execute_avd_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
     """
     return execute_command([avd_cmd] + args)
 
-
-def get_targets() -> list[Target]:
-    """
-    Get a list of all available targets
-
-    Raises:
-        Exception: If avdmanager is not found
-
-    Returns:
-        list[Target]: List of all available targets
-    """
-    cmd_args = ["list", "target"]
-    res = execute_avd_command(cmd_args)
-
-    targets = []
-    # Parse devices from output
-    if res.stdout:
-        current_target = Target()
-        for line in res.stdout.decode("utf-8").split("\n"):
-            stripped_line = line.strip()
-            if not stripped_line:
-                continue
-
-            # If "----------" is seen, a new target definition begins
-            # So we add the current target to the targets and start a new one
-            if stripped_line == "----------":
-                if not current_target.is_empty():
-                    targets.append(current_target)
-                current_target = Target()
-                continue
-
-            # If there is no : in the line, its not a valid key value pair
-            if ":" not in stripped_line:
-                continue
-
-            key, value = stripped_line.split(":")
-            key = key.strip().upper()
-            value = value.strip()
-            # TODO match?
-            if key == "id".upper():
-                id, alias = value.split(" or ")
-                current_target.id = int(id.strip())
-                current_target.id_alias = alias.strip().replace('"', '')
-            elif key == "Name".upper():
-                current_target.name = value
-            elif key == "Type".upper():
-                current_target.target_type = value
-            elif key == "API Level".upper():
-                current_target.api_level = int(value)
-            elif key == "Revision".upper():
-                current_target.revision = int(value)
-
-        # Add the last target
-        if not current_target.is_empty():
-            targets.append(current_target)
-    return targets
-
-
-def get_devices() -> list[Device]:
-    """
-    Get a list of all available devices
-
-    Raises:
-        Exception: If avdmanager is not found
-
-    Returns:
-        list[Device]: List of all available devices
-    """
-    cmd_args = ["list", "device"]
-    res = execute_avd_command(cmd_args)
-
-    devices = []
-    # Parse devices from output
-    if res.stdout:
-        current_device = Device()
-        for line in res.stdout.decode("utf-8").split("\n"):
-            stripped_line = line.strip()
-            if not stripped_line:
-                continue
-            # If "---------" is seen a new target definition begins
-            # So we add the old current target and overwrite it
-            if stripped_line == "---------":
-                if not current_device.is_empty():
-                    devices.append(current_device)
-                current_device = Device()
-                continue
-
-            # If there is no : in the line, its not a valid key value pair
-            if ":" not in stripped_line or stripped_line.count(":") > 2:
-                continue
-            key, value = stripped_line.split(":")
-            key = key.strip().upper()
-            value = value.strip()
-
-            # TODO match?
-            if key == "id".upper():
-                id, alias = value.split(" or ")
-                current_device.id = int(id.strip())
-                current_device.id_alias = alias.strip().replace('"', '')
-            elif key == "Name".upper():
-                current_device.name = value
-            elif key == "OEM".upper():
-                current_device.oem = value
-            elif key == "Tag".upper():
-                current_device.tag = value
-
-        # Append last device
-        if not current_device.is_empty():
-            devices.append(current_device)
-
-    return devices
-
-
-def get_avds() -> list[AVD]:
-    """
-    Get a list of all available AVDs
-
-    Raises:
-        Exception: If avdmanager is not found
-
-    Returns:
-        list[AVD]: List of all available AVDs
-    """
-    cmd_args = ["list", "avd"]
-    res = execute_avd_command(cmd_args)
-
-    avds = []
-    # Parse avds from output
-    if res.stdout:
-        current_avd = AVD()
-        for line in res.stdout.decode("utf-8").split("\n"):
-            stripped_line = line.strip()
-            if not stripped_line:
-                continue
-            # If "---------" is seen, a new target definition begins
-            # So we add the old current target to the list and start a new one
-            if stripped_line == "---------":
-                if not current_avd.is_empty():
-                    avds.append(current_avd)
-                current_avd = AVD()
-                continue
-
-            # If there is no : in the line, its not a valid key value pair
-            if ":" not in stripped_line:
-                continue
-
-            key, value, *rest = stripped_line.split(":")
-            key = key.strip().upper()
-            value = value.strip()
-            # TODO match?
-            if key == "Name".upper():
-                current_avd.name = value
-            elif key == "Device".upper():
-                current_avd.device = value
-            elif key == "Path".upper():
-                current_avd.path = value
-            elif key == "Target".upper():
-                current_avd.target = value
-            elif key == "Skin".upper():
-                current_avd.skin = value
-            elif key == "Sdcard".upper():
-                current_avd.sdcard_size = value
-            elif key == "Based on".upper():
-                # Based on: Android 12L (Sv2) Tag/ABI: google_apis/x86_64
-                current_avd.based_on = value.replace("Tag/ABI", "").strip()
-                current_avd.abi = rest[0].strip()
-
-        # Append last avd
-        if not current_avd.is_empty():
-            avds.append(current_avd)
-
-    return avds
-
-
-def get_avd_by_name(name: str) -> AVD | None:
-    """
-    Get a avd by its name
-
-    Args:
-        name: The name of the avd
-
-    Returns:
-        AVD | None: The avd if one was found, None otherwise
-    """
-    for avd in get_avds():
-        if avd.name == name:
-            return avd
-    return None
-
-
-def create_avd(name: str, 
-               package: str,
-               device: Device,
-               force: bool = False,
-               sdcard: str | None = None,
-               tag: str | None = None,
-               skin: str | None = None,
-               abi: str | None = None,
-               path: str | None = None) -> AVD | None:
-    """
-    Create a new AVD with the given name and package
-
-    Args:
-        name (str): Name of the new AVD
-        package (str): Package path of the system image for this AVD (e.g. 'system-images;android-19;google_apis;x86')
-        device (str): The device which the emulator is based on
-        force (bool, optional): Forces creation (overwrites an existing AVD). Defaults to False.
-        sdcard (str, optional): Path to a shared SD card image, or size of a new sdcard for the new AVD. Defaults to None.
-        tag (str, optional): The sys-img tag to use for the AVD. The default is to auto-select if the platform has only one tag for its system images. Defaults to None.
-        skin (str, optional): Skin of the AVD. Defaults to None.
-        abi (str, optional): The ABI to use for the AVD. The default is to auto-select the ABI if the platform has only one ABI for its system images. Defaults to None.
-        path (str, optional): Directory where the new AVD will be created. Defaults to None.
-
-    Raises:
-        Exception: If avdmanager is not found
-
-    Returns:
-        AVD: The newly created AVD or None if there was an error
-    """
-    inclusion_dict = {
-        "--sdcard": sdcard,
-        "--tag": tag,
-        "--skin": skin,
-        "--abi": abi,
-        "--path": path,
-    }
-    cmd_args = ["create", "avd", "-n",
-                name, "--package", package, "--device", str(device.id)]
-    for key, value in inclusion_dict.items():
-        if value:
-            cmd_args.append(key)
-            cmd_args.append(str(value))
-    if force:
-        cmd_args += "--force"
-    res = execute_avd_command(cmd_args)
-    # Check stderr
-    if res.stderr.decode() != "":
-        logging.warning(res.stderr.decode())
-    return get_avd_by_name(name)
