@@ -2,6 +2,7 @@ import re
 import os
 import shlex
 import subprocess
+import logging
 
 avd_cmd = "avdmanager"
 emulator_cmd = "emulator"
@@ -83,6 +84,11 @@ class AVD:
         self._device = None
         self.name = "invalid"
         self.process = None
+
+    def __eq__(self, __value: object) -> bool:
+        return (isinstance(__value, self.__class__)
+                and __value.name == self.name
+                and __value.process == self.process)
 
     def is_empty(self) -> bool:
         """
@@ -470,7 +476,7 @@ def create_avd(name: str,
         Exception: If avdmanager is not found
 
     Returns:
-        AVD: The newly created AVD
+        AVD: The newly created AVD or None if there was an error
     """
     inclusion_dict = {
         "--sdcard": sdcard,
@@ -488,8 +494,11 @@ def create_avd(name: str,
     if force:
         cmd_args += "--force"
     try:
-        subprocess.run(
+        res = subprocess.run(
             cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
         raise Exception("Could not find avdmanager")
+    # Check stderr
+    if res.stderr.decode() != "":
+        logging.warning(res.stderr.decode())
     return get_avd_by_name(name)
