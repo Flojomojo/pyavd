@@ -3,6 +3,7 @@ import pytest
 sys.path.append("../pyavd/")
 from pyavd import get_targets, get_avds, get_devices, create_avd, get_avd_by_name
 
+# This import is for syntax highlighting
 #from ..pyavd import get_targets, get_avds, get_devices, create_avd, get_avd_by_name
 
 AVD_NAME = "test_avd"
@@ -29,6 +30,18 @@ def test_get_avds():
             assert True
             return
     assert False
+
+def test_rename():
+    avd_to_rename = get_avd_by_name(AVD_NAME)
+    assert avd_to_rename is not None
+    res = avd_to_rename.rename("new_test_avd")
+    assert res is True
+    assert avd_to_rename.name == "new_test_avd"
+    hopefully_renamed_avd = get_avd_by_name("new_test_avd")
+    assert hopefully_renamed_avd is not None
+    # Rename it back to the original
+    res = hopefully_renamed_avd.rename(AVD_NAME)
+    assert res is True
 
 def test_delete_avd():
     # Get the avd and delete it
