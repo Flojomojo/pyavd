@@ -217,7 +217,7 @@ class AVD:
                 return
 
     @classmethod
-    def create_avd(cls,
+    def create(cls,
                    name: str, 
                    package: str,
                    device: Device,
@@ -266,10 +266,10 @@ class AVD:
         # Check stderr
         if res.stderr.decode() != "":
             logging.warning(res.stderr.decode())
-        return cls.get_avd_by_name(name)
+        return cls.get_by_name(name)
 
     @classmethod
-    def get_avd_by_name(cls, name: str) -> AVD | None:
+    def get_by_name(cls, name: str) -> AVD | None:
         """
         Get a avd by its name
 
