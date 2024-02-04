@@ -10,21 +10,18 @@ emulator_cmd = "emulator"
 
 class Target:
     def __init__(self,
-                 id: int,
-                 id_alias: str,
-                 name: str,
-                 target_type: str,
-                 api_level: int,
-                 revision: int) -> None:
+                 id: int = -1,
+                 id_alias: str | None = None,
+                 name: str | None = None,
+                 target_type: str | None = None,
+                 api_level: int | None = None,
+                 revision: int | None = None) -> None:
         self.id = id
         self.id_alias = id_alias
         self.name = name
         self.target_type = target_type
         self.api_level = api_level
         self.revision = revision
-    
-    def __init__(self) -> None:
-        self.id = -1
 
     def is_empty(self) -> bool:
         """
@@ -35,20 +32,16 @@ class Target:
 
 class Device:
     def __init__(self,
-                 id: int,
-                 id_alias: str,
-                 name: str,
-                 oem: str,
+                 id: int = -1,
+                 id_alias: str | None = None,
+                 name: str | None = None,
+                 oem: str | None = None,
                  tag: str = "") -> None:
         self.id = id
         self.id_alias = id_alias
         self.name = name
         self.oem = oem
         self.tag = tag
-    
-    def __init__(self) -> None:
-        self.id = -1
-        self.tag = ""
 
     def is_empty(self) -> bool:
         """
@@ -59,18 +52,18 @@ class Device:
 
 class AVD:
     def __init__(self, 
-                 name: str,
-                 device: Device,
-                 path: str,
-                 target: str,
-                 skin: str,
-                 sdcard_size: str,
-                 based_on: str,
-                 abi: str) -> None:
+                 name: str = "invalid",
+                 device: Device | None = None,
+                 path: str | None = None,
+                 target: str | None = None,
+                 skin: str | None = None,
+                 sdcard_size: str | None = None,
+                 based_on: str | None = None,
+                 abi: str | None = None) -> None:
         self.name = name
         self._device = device
         # Check if path exists
-        if not os.path.isfile(path):
+        if path is not None and not os.path.isfile(path):
             raise Exception("Path does not exist")
         self.path = path
         self.target = target
@@ -78,11 +71,6 @@ class AVD:
         self.sdcard_size = sdcard_size
         self.based_on = based_on
         self.abi = abi
-        self.process = None
-
-    def __init__(self) -> None:
-        self._device = None
-        self.name = "invalid"
         self.process = None
 
     def __eq__(self, __value: object) -> bool:
