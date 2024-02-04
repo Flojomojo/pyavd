@@ -232,14 +232,27 @@ class AVD:
         return True
 
 def execute_command(command: list[str]) -> subprocess.CompletedProcess[bytes]:
-    try:
-        res = subprocess.run(
-            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError:
-        raise Exception("Could not find avdmanager")
+    """
+    Executes a command 
+    Args:
+        command (list[str): The command represented as a list of command args, e.g. ["ls", "-l"]
+
+    Returns:
+        The result of the command as a CompletedProcess obj
+    """
+    res = subprocess.run(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return res
 
 def execute_avd_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
+    """
+    Executes a avd command
+    Args:
+        args: The args of the avd command, e.g. ["list", "avd"] will execute `avdmanager list avd` 
+
+    Returns:
+        The result of the avd command as a CompletedProcess obj
+    """
     return execute_command([avd_cmd] + args)
 
 
