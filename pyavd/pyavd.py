@@ -167,6 +167,7 @@ class AVD:
             self.path = os.path.join(os.path.dirname(
                 os.path.abspath(self.path)), self.name + ".avd")
             return True
+        self.name = new_name
         return False
 
     def start(self, detach: bool = False, config: str = "") -> subprocess.Popen:
