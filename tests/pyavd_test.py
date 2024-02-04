@@ -1,7 +1,7 @@
 import sys
-import pytest
+
 sys.path.append("../pyavd/")
-from pyavd import get_targets, get_avds, get_devices, create_avd, get_avd_by_name
+from pyavd import *
 
 # This import is for syntax highlighting
 #from ..pyavd import get_targets, get_avds, get_devices, create_avd, get_avd_by_name
@@ -21,6 +21,11 @@ def test_create_avd():
     searched = get_avd_by_name(AVD_NAME)
     assert searched is not None
     assert searched == created
+
+def test_empty_classes():
+    assert AVD().is_empty()
+    assert Device().is_empty()
+    assert Target().is_empty()
 
 def test_get_avds():
     # Get the avds and check if it contains "test_avd"
