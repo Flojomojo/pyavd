@@ -376,6 +376,7 @@ class AVD:
         Returns:
             bool: True if the move was successful, False otherwise
         """
+        raise NotImplementedError("This functionality does not seem to work using the avdmanager")
         cmd_args = ["move", "avd", "-n", self.name, "-p", new_path]
         res = _execute_avd_command(cmd_args)
         if res.stdout and not res.stderr:
