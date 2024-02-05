@@ -8,6 +8,7 @@ import logging
 
 avd_cmd = "avdmanager"
 emulator_cmd = "emulator"
+adb_cmd = "adb"
 
 
 class Target:
@@ -43,7 +44,7 @@ class Target:
             list[Target]: List of all available targets
         """
         cmd_args = ["list", "target"]
-        res = execute_avd_command(cmd_args)
+        res = _execute_avd_command(cmd_args)
 
         targets = []
         # Parse devices from output
@@ -120,7 +121,7 @@ class Device:
             list[Device]: List of all available devices
         """
         cmd_args = ["list", "device"]
-        res = execute_avd_command(cmd_args)
+        res = _execute_avd_command(cmd_args)
 
         devices = []
         # Parse devices from output
@@ -262,7 +263,7 @@ class AVD:
                 cmd_args.append(str(value))
         if force:
             cmd_args += "--force"
-        res = execute_avd_command(cmd_args)
+        res = _execute_avd_command(cmd_args)
         # Check stderr
         if res.stderr.decode() != "":
             logging.warning(res.stderr.decode())
@@ -298,7 +299,7 @@ class AVD:
             list[AVD]: List of all available AVDs
         """
         cmd_args = ["list", "avd"]
-        res = execute_avd_command(cmd_args)
+        res = _execute_avd_command(cmd_args)
 
         avds = []
         # Parse avds from output
@@ -358,7 +359,8 @@ class AVD:
             True if successful
         """
         cmd_args = ["delete", "avd", "-n", self.name]
-        res = execute_avd_command(cmd_args)
+        res = _execute_avd_command(cmd_args)
+        # TODO ?
         return res.stdout and not res.stderr
 
     def move(self, new_path: str) -> bool:
@@ -392,10 +394,11 @@ class AVD:
             bool: True if the rename was successful, False otherwise
         """
         cmd_args = ["move", "avd", "-n", self.name, "-r", new_name]
-        res = execute_avd_command(cmd_args)
+        res = _execute_avd_command(cmd_args)
         if res.stdout and not res.stderr:
             # Correct the filename and filepath to the new filename and path
             self.name = new_name
+            # TODO better paths
             self.path = os.path.join(os.path.dirname(
                 os.path.abspath(self.path)), self.name + ".avd")
             return True
@@ -440,12 +443,22 @@ class AVD:
         self.process = proc
         return proc
 
-    def stop(self) -> bool:
-        # TODO
-        raise NotImplementedError()
-        if not self.process:
-            return False
+    def stop(self, port:int = 5554) -> bool:
+        """
+        Stops the emulator via adb
+
+        Args:
+            port (int, optional): The port of the emulator. Defaults to 5554.
+
+        Returns:
+            bool: True if the emulator has been stopped. False otherwise.
+        """
+        emulator_name = f"emulator-{port}"
+        cmd_args = ["-s", emulator_name, "emu", "kill"]
+        result = _execute_adb_command(cmd_args)
+        # TODO actually check output 
         return True
+
 
     def kill(self) -> bool:
         """
@@ -453,7 +466,7 @@ class AVD:
         Note: Preferably use stop()
 
         Returns:
-            bool: True if the AVD was stopped, False otherwise
+            bool: True if the emulator was stopped, False otherwise
         """
         if not self.process:
             return False
@@ -463,7 +476,7 @@ class AVD:
         self.process = None
         return True
 
-def execute_command(command: list[str]) -> subprocess.CompletedProcess[bytes]:
+def _execute_command(command: list[str]) -> subprocess.CompletedProcess[bytes]:
     """
     Executes a command 
     Args:
@@ -476,7 +489,7 @@ def execute_command(command: list[str]) -> subprocess.CompletedProcess[bytes]:
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return res
 
-def execute_avd_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
+def _execute_avd_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
     """
     Executes a avd command
     Args:
@@ -485,5 +498,16 @@ def execute_avd_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
     Returns:
         The result of the avd command as a CompletedProcess obj
     """
-    return execute_command([avd_cmd] + args)
+    return _execute_command([avd_cmd] + args)
+
+def _execute_adb_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
+    """
+    Executes a adb command
+    Args:
+        args: The args of the adb command, e.g. ["devices"] will execute `adb devices` 
+
+    Returns:
+        The result of the avd command as a CompletedProcess obj
+    """
+    return _execute_command([adb_cmd] + args)
 
