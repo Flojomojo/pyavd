@@ -18,15 +18,15 @@ import pyavd
 #pyavd.pyavd.emulator_cmd = "/path/to/emulator"
 
 # Get all the avaliable devices
-devices = pyavd.get_devices()
+devices = pyavd.Device.get_devices()
     
 # Declare a package and name
-package = "system-images;android-32;google_apis;x86_64"
+package = "system-images;android-32;google_apis;x86"
 
-name = "Hello from pyavd"
+name = "created_with_pyavd"
 
 # Create a avd with the declared variables and a chosen device
-avd = pyavd.create_avd("code", package, devices[22])
+avd = pyavd.AVD.create(name, package, devices[22])
 
 # Use a custom config
 custom_config = "-no-snapshot"

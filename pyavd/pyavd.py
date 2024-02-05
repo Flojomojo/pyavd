@@ -226,7 +226,7 @@ class AVD:
                    tag: str | None = None,
                    skin: str | None = None,
                    abi: str | None = None,
-                   path: str | None = None) -> AVD | None:
+                   path: str | None = None) -> AVD:
         """
         Create a new AVD with the given name and package
 
@@ -266,7 +266,9 @@ class AVD:
         # Check stderr
         if res.stderr.decode() != "":
             logging.warning(res.stderr.decode())
-        return cls.get_by_name(name)
+        created_avd = cls.get_by_name(name)
+        assert created_avd is not None, "Avd was not created"
+        return created_avd
 
     @classmethod
     def get_by_name(cls, name: str) -> AVD | None:
