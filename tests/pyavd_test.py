@@ -1,4 +1,5 @@
 import sys
+import pytest
 
 sys.path.append("../pyavd/")
 from pyavd import *
@@ -10,7 +11,6 @@ AVD_NAME = "test_avd"
 
 def test_get_targets():
     targets = Target.get_targets()
-    print(targets)
     assert True
 
 def test_create_avd():
@@ -21,6 +21,16 @@ def test_create_avd():
     searched = AVD.get_by_name(AVD_NAME)
     assert searched is not None
     assert searched == created
+
+@pytest.mark.skip(reason="Method does not work yet")
+def test_move():
+    avd = AVD.get_by_name(AVD_NAME)
+    assert avd is not None
+    old_path = avd.path
+    new_path = "./test_avd.avd"
+    avd.move(new_path)
+    print("new path", avd.path)
+    assert False
 
 def test_empty_classes():
     assert AVD().is_empty()

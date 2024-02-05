@@ -365,7 +365,6 @@ class AVD:
 
     def move(self, new_path: str) -> bool:
         """
-        NOTE: NOT IMPLEMENTED\n
         Move the AVD to a new path
 
         Args:
@@ -377,7 +376,11 @@ class AVD:
         Returns:
             bool: True if the move was successful, False otherwise
         """
-        raise NotImplementedError()
+        cmd_args = ["move", "avd", "-n", self.name, "-p", new_path]
+        res = _execute_avd_command(cmd_args)
+        if res.stdout and not res.stderr:
+            self.path = new_path
+            return True
         return False
 
     def rename(self, new_name: str) -> bool:
@@ -459,7 +462,6 @@ class AVD:
         # TODO actually check output 
         return True
 
-
     def kill(self) -> bool:
         """
         Kills the AVD
@@ -487,6 +489,7 @@ def _execute_command(command: list[str]) -> subprocess.CompletedProcess[bytes]:
     """
     res = subprocess.run(
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print("command", command, "res:", res.stdout, res.stderr)
     return res
 
 def _execute_avd_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
