@@ -211,7 +211,7 @@ class AVD:
         # Remove everything inside the parentheses so we can actually compare it
         device = re.sub(r"[\(\[].*?[\)\]]", "", device).strip()
         # Find the corrent device to the string
-        for d in get_devices():
+        for d in Device.get_devices():
             if d.id_alias == device:
                 self._device = d
                 return
